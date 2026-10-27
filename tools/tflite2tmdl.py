@@ -39,6 +39,7 @@ TML_SOFTMAX   = 3
 TML_RESHAPE   = 4
 TML_DWCONV2D  = 5
 TML_ADD       = 6
+TML_MAXPOOL2D = 7
 
 TM_PAD_VALID  = 0
 TM_PAD_SAME   = 1
@@ -54,6 +55,7 @@ layername2type={\
     "RESHAPE"          :TML_RESHAPE,
     "DEPTHWISE_CONV_2D":TML_DWCONV2D,
     "ADD"              :TML_ADD,
+    "MAX_POOL_2D"      :TML_MAXPOOL2D
 }
 
 MDLBINHEAD_SIZE=64
@@ -342,6 +344,8 @@ def pack_fc(l, mdl_type, endian):
     # weight scale
     if is_mdl_int(mdl_type):
         ws = l["w_scale"] 
+        if ws.size == 1 and mo_c > 1:
+            ws = np.repeat(ws, mo_c)
         lbody += struct.pack(endian+"%df"%(ws.size), *ws)
         if ws_size!= ws.size*4:
             lbody += bytes(ws_size-ws.size*4) #align to 8bytes
@@ -394,6 +398,40 @@ def pack_add(l, mdl_type, endian, buf_size):
     lbody += struct.pack(endian+'i',  0);
     return lbody
 
+def pack_maxpool2d(l, mdl_type, endian):
+    lbody = b''
+    inh, inw = l["in_shape"][1], l["in_shape"][2]
+    kh, kw = l["filter_height"], l["filter_width"]
+    sy, sx = l["stride_h"], l["stride_w"]
+
+    lbody += struct.pack('B', kw)
+    lbody += struct.pack('B', kh)
+    lbody += struct.pack('B', sx)
+    lbody += struct.pack('B', sy)
+
+    if l["padding"] == 0:  # SAME
+        wpad = kw + (inw - 1) // sx * sx - inw
+        hpad = kh + (inh - 1) // sy * sy - inh
+        assert (wpad >= 0 and hpad >= 0)
+        print("    padding same(T,B,L,R): %d,%d,%d,%d" % (hpad//2, hpad - hpad//2, wpad//2, wpad - wpad//2))
+        lbody += struct.pack('B', int(hpad // 2))        # top
+        lbody += struct.pack('B', int(hpad - hpad // 2)) # bottom
+        lbody += struct.pack('B', int(wpad // 2))        # left
+        lbody += struct.pack('B', int(wpad - wpad // 2)) # right
+    elif l["padding"] == 1:  # VALID
+        lbody += struct.pack('BBBB', 0, 0, 0, 0)
+        print("    padding valid")
+    elif l["padding"] == 2:  # valid & fuse pad
+        last_pad = l["pad"]
+        print("    Fusing PAD and MAXPOOL2D valid")
+        lbody += struct.pack('BBBB', last_pad[0], last_pad[1], last_pad[2], last_pad[3])
+        print("    padding (T,B,L,R): %d,%d,%d,%d" % (last_pad[0], last_pad[1], last_pad[2], last_pad[3]))
+    else:
+        print("unsupport padding!")
+        assert 0
+        
+    return lbody
+        
 ############################### PACK FUNCTIONS #####################################
 def pack_tmdl(layers, mdl_name, mdl_type, out_deq, in_dims, out_dims, endian, write_c_header=True):
     global unit_size,w_type,b_type,b_type_np,bunit_size
@@ -529,6 +567,8 @@ def pack_tmdl(layers, mdl_name, mdl_type, out_deq, in_dims, out_dims, endian, wr
         elif l["name"] == "ADD":
             lbody = pack_add(l, mdl_type, endian, buf_size)
             keep_flag = 0
+        elif l["name"] == "MAX_POOL_2D":
+            lbody = pack_maxpool2d(l, mdl_type, endian)
         else:
             print("unsupport layer type %s"%l["name"])
             assert 0

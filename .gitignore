@@ -70,3 +70,9 @@ model*.h
 model*.tmdl
 img_data.c
 
+
+# symlink 
+tinymaix/
+*.egg-info/
+dist/
+

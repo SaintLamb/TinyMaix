@@ -23,13 +23,14 @@ static const char* mdl_type_str[6] = {
 };
 
 static const char* tml_str_tbl[TML_MAXCNT] = {
-    "Conv2D",   /*TML_CONV2D  = 0,*/
-    "GAP",      /*TML_GAP     = 1,*/
-    "FC",       /*TML_FC      = 2,*/
-    "Softmax",  /*TML_SOFTMAX = 3,*/
-    "Reshape",  /*TML_RESHAPE = 4,*/
-    "DWConv2D", /*TML_DWCONV2D= 5,*/
-    "ADD",      /*TML_ADD     = 6,*/
+    "Conv2D",   /*TML_CONV2D    = 0,*/
+    "GAP",      /*TML_GAP       = 1,*/
+    "FC",       /*TML_FC        = 2,*/
+    "Softmax",  /*TML_SOFTMAX   = 3,*/
+    "Reshape",  /*TML_RESHAPE   = 4,*/
+    "DWConv2D", /*TML_DWCONV2D  = 5,*/
+    "ADD",      /*TML_ADD       = 6,*/
+    "MaxPool2D" /*TML_MAXPOOL2D = 7,*/
 };
 
 static const int tml_headsize_tbl[TML_MAXCNT] = {
@@ -40,6 +41,7 @@ static const int tml_headsize_tbl[TML_MAXCNT] = {
     sizeof(tml_reshape_t),
     sizeof(tml_conv2d_dw_t),
     sizeof(tml_add_t),
+    sizeof(tml_maxpool2d_t)
 };
 
 tm_err_t tm_stat(tm_mdlbin_t* b)
@@ -106,6 +108,13 @@ tm_err_t tm_stat(tm_mdlbin_t* b)
                     l->kernel_w, l->kernel_h, l->stride_w, l->stride_h, l->dilation_w, l->dilation_h, \
                     l->act, l->pad[0], l->pad[1], l->pad[2], l->pad[3], l->depth_mul,\
                     l->ws_oft, l->w_oft, l->b_oft);
+                break;}
+            case TML_MAXPOOL2D: {
+                tml_maxpool2d_t* l = (tml_maxpool2d_t*)(layer_body);
+                ops = memout*(l->kernel_w) * (l->kernel_h) * 1;
+                TM_DBG("MaxPool2D: kw=%d, kh=%d, sw=%d, sh=%d, pad=[%d,%d,%d,%d]", \
+                    l->kernel_w, l->kernel_h, l->stride_w, l->stride_h, \
+                    l->pad[0], l->pad[1], l->pad[2], l->pad[3]);
                 break;}
             default:
                 ops = 0;

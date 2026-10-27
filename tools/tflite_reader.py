@@ -264,6 +264,12 @@ def read_tflite(tflite_name, log_func=print):
                 else:
                     layers[idx1]["is_keep"] = 1
             log_func("    add no param")
+        elif layer_name == "MAX_POOL_2D":
+            log_func("    maxpool2d no param")
+            # fuse pack
+            if last_pad != None:
+                l.update({"padding":2})
+                l.update({"pad":last_pad})
         elif layer_name in ["SHAPE", "STRIDED_SLICE", "PACK"]:
             log_func("    ignore %s" % layer_name)
             continue

@@ -117,6 +117,7 @@ typedef enum{
     TML_RESHAPE   = 4,
     TML_DWCONV2D  = 5,
     TML_ADD       = 6,
+    TML_MAXPOOL2D = 7,
     TML_MAXCNT    ,
 }tm_layer_type_t;
 
@@ -283,6 +284,15 @@ typedef struct{
     uint32_t reserve;        //align8
 }tml_add_t;
 
+typedef struct{
+    tml_head_t h;
+
+    uint8_t kernel_w, kernel_h;
+    uint8_t stride_w, stride_h;
+
+    uint8_t pad[4];          //top,buttom,left,right  
+} tml_maxpool2d_t;
+
 
 /******************************* TYPE ************************************/
 typedef tm_err_t (*tml_stat_t)(tml_head_t* layer, tm_mat_t* in, tm_mat_t* out);
@@ -311,6 +321,9 @@ tm_err_t tml_softmax(tm_mat_t* in, tm_mat_t* out, sctype_t in_s, zptype_t in_zp,
 tm_err_t tml_reshape(tm_mat_t* in, tm_mat_t* out, sctype_t in_s, zptype_t in_zp, sctype_t out_s, zptype_t out_zp);
 tm_err_t tml_add(tm_mat_t* in0, tm_mat_t* in1, tm_mat_t* out, \
     sctype_t in_s0, zptype_t in_zp0, sctype_t in_s1, zptype_t in_zp1, sctype_t out_s, zptype_t out_zp);
+tm_err_t TM_WEAK tml_maxpool2d(tm_mat_t* in, tm_mat_t* out, 
+    int kw, int kh, int sx, int sy, int pad_top, int pad_bottom, int pad_left, int pad_right,
+    sctype_t in_s, zptype_t in_zp, sctype_t out_s, zptype_t out_zp);
 
 /******************************* STAT FUNCTION ************************************/
 #if TM_ENABLE_STAT

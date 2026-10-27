@@ -234,7 +234,7 @@ tm_err_t TM_WEAK tml_fc(tm_mat_t* in, tm_mat_t* out,  wtype_t* w, btype_t* b, \
         tm_dot_prod(data, w+c*in->c, in->c, &sum);
         sum += b[c];    //fuse with zp
     #if TM_MDL_TYPE == TM_MDL_INT8 || TM_MDL_TYPE == TM_MDL_INT16
-        out->data[c] = (mtype_t)(sum*in_s*ws[0]/out_s + out_zp); //requant
+        out->data[c] = (mtype_t)(sum*in_s*ws[c]/out_s + out_zp); //requant
     #else
         out->data[c] = (mtype_t)(sum);
     #endif
@@ -307,4 +307,51 @@ tm_err_t TM_WEAK tml_add(tm_mat_t* in0, tm_mat_t* in1, tm_mat_t* out, \
     return TM_OK;
 }
 
+/*************************** TML_MAXPOOL **********************************/
+tm_err_t TM_WEAK tml_maxpool2d(tm_mat_t* in, tm_mat_t* out, 
+    int kw, int kh, int sx, int sy, int pad_top, int pad_bottom, int pad_left, int pad_right,
+    sctype_t in_s, zptype_t in_zp, sctype_t out_s, zptype_t out_zp) 
+{
+    if (in == NULL || out == NULL || out->h <= 0 || out->w <= 0) 
+        return TM_ERR_TODO;
+    mtype_t* inp = in->data;
+    mtype_t* outp = out->data;
+    int oh = (in->h + pad_top + pad_bottom - kh) / sy + 1;
+    int ow = (in->w + pad_left + pad_right - kw) / sx + 1;
+
+    if (oh != out->h || ow != out->w || in->c != out->c) 
+        return TM_ERR_TODO;
+
+    for (int oy = 0; oy < out->h; oy++) {
+        int sty = oy * sy - pad_top;
+        for (int ox = 0; ox < out->w; ox++) {
+            int stx = ox * sx - pad_left;
+            for (int c = 0; c < in->c; c++) {
+                #if TM_MDL_TYPE == TM_MDL_INT8
+                    mtype_t maxd = INT8_MIN;
+                #elif TM_MDL_TYPE == TM_MDL_INT16
+                    mtype_t maxd = INT16_MIN;
+                #else
+                    return TM_ERR_TODO;
+                #endif
+                for (int ky = 0; ky < kh; ky++) {
+                    int iy = sty + ky;
+                    for (int kx = 0; kx < kw; kx++) {
+                        int ix = stx + kx;
+                        if (ix < 0 || ix >= in->w || iy < 0 || iy >= in->h)
+                            continue;
+                        mtype_t data = inp[(iy*in->w+ix)*in->c+c];
+                        if (data > maxd) maxd = data;
+                    }
+                }
+                #if TM_MDL_TYPE == TM_MDL_INT8 || TM_MDL_TYPE == TM_MDL_INT16
+                    outp[(oy*out->w+ox)*out->c+c] = (mtype_t)roundf((float)(maxd - in_zp) * in_s / out_s + out_zp);
+                #else
+                    outp[(oy*out->w+ox)*out->c+c] = maxd;
+                #endif
+            }
+        }
+    }
+    return TM_OK;
+}
 #endif

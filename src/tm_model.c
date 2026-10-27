@@ -131,6 +131,11 @@ tm_err_t TM_WEAK tm_run(tm_mdl_t* mdl, tm_mat_t* in, tm_mat_t* out)
             _in1.data = (mtype_t *)(mdl->buf + l->in_oft1);
             res = tml_add(&_in, &_in1, &_out, h->in_s, h->in_zp, l->in_s1, l->in_zp1, h->out_s, h->out_zp);
             break; }
+        case TML_MAXPOOL2D: {
+            tml_maxpool2d_t* l = (tml_maxpool2d_t*)(mdl->layer_body);
+            res = tml_maxpool2d(&_in, &_out, l->kernel_w, l->kernel_h, l->stride_w, l->stride_h,
+                l->pad[0], l->pad[1], l->pad[2], l->pad[3], h->in_s, h->in_zp, h->out_s, h->out_zp);
+            break; }
         default:
             res = TM_ERR_LAYERTYPE;
             break;
